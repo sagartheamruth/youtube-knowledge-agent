@@ -1,0 +1,28 @@
+{
+  "name": "youtube-knowledge-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "sync": "tsx src/cli.ts sync",
+    "ask": "tsx src/cli.ts ask",
+    "insight": "tsx src/cli.ts insight",
+    "check": "tsx src/cli.ts check"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
+    "fast-xml-parser": "^5.7.1",
+    "minisearch": "^7.2.0",
+    "youtube-caption-extractor": "^1.9.1",
+    "youtube-dl-exec": "^3.1.5",
+    "youtube-transcript": "^1.3.0",
+    "youtubei.js": "^17.0.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
