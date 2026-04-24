@@ -29,6 +29,7 @@ pnpm sync -- --playlist "https://www.youtube.com/playlist?list=PLSAVyiM48sqvzLBE
 pnpm ask -- --question "What does he say about getting hired faster?"
 pnpm insight
 pnpm insight -- --mark-sent
+pnpm daily-note
 pnpm check
 ```
 

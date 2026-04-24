@@ -1,7 +1,7 @@
 import path from 'node:path';
 import process from 'node:process';
 import { chunkAllVideos } from './chunking.js';
-import { pickDailyInsight } from './insights.js';
+import { buildInsightVoiceScript, pickDailyInsight } from './insights.js';
 import { answerQuestion } from './qa.js';
 import { createStorage } from './storage.js';
 import { fetchPlaylist, fetchVideoRecordWithFallback } from './youtube.js';
@@ -62,6 +62,7 @@ async function askCommand() {
 
 async function insightCommand() {
   const markSent = process.argv.includes('--mark-sent');
+  const includeVoiceScript = process.argv.includes('--voice-script');
   const chunks = await storage.readChunks();
   const log = await storage.readInsightLog();
   const result = pickDailyInsight(chunks, log);
@@ -69,7 +70,7 @@ async function insightCommand() {
     log.push({ chunkId: result.chunk.id, sentAt: new Date().toISOString() });
     await storage.writeInsightLog(log);
   }
-  console.log(JSON.stringify(result, null, 2));
+  console.log(JSON.stringify(includeVoiceScript ? { ...result, voiceScript: buildInsightVoiceScript(result) } : result, null, 2));
 }
 
 async function checkCommand() {

@@ -1,5 +1,5 @@
 import type { ChunkRecord, InsightLogEntry, InsightResult } from './types.js';
-import { formatTimestamp, splitSentences, tokenize } from './utils.js';
+import { formatTimestamp, normalizeText, splitSentences, tokenize } from './utils.js';
 
 function scoreSignal(chunk: ChunkRecord): number {
   const text = chunk.text.toLowerCase();
@@ -48,4 +48,25 @@ export function pickDailyInsight(chunks: ChunkRecord[], log: InsightLogEntry[]):
     alreadySentCount: log.filter((entry) => entry.chunkId === winner.id).length,
     strategy: 'least-recently-surfaced + signal-ranked'
   };
+}
+
+function cleanVoiceLine(line: string): string {
+  return normalizeText(
+    line
+      .replace(/\[[^\]]+\]/g, '')
+      .replace(/\b(?:uh|um|uhh|umm)\b/gi, '')
+      .replace(/\s*--\s*/g, ' ')
+  );
+}
+
+export function buildInsightVoiceScript(result: InsightResult): string {
+  const lines = splitSentences(result.chunk.text)
+    .map(cleanVoiceLine)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  const body = lines.join(' ');
+  return normalizeText(
+    `Morning insight. One useful idea from ${result.chunk.videoTitle} around ${result.timestamp}: ${body} Takeaway: this is a reminder to look for the non-obvious leverage in the problem, not just the popular one.`
+  );
 }

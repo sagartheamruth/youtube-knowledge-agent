@@ -8,6 +8,7 @@
     "sync": "tsx src/cli.ts sync",
     "ask": "tsx src/cli.ts ask",
     "insight": "tsx src/cli.ts insight",
+    "daily-note": "tsx src/cli.ts insight -- --voice-script",
     "check": "tsx src/cli.ts check"
   },
   "dependencies": {

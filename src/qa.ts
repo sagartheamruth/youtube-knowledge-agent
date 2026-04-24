@@ -1,5 +1,5 @@
 import type { AskResult, ChunkRecord, SearchHit } from './types.js';
-import { formatTimestamp, scoreTokenOverlap, splitSentences, tokenize } from './utils.js';
+import { formatTimestamp, normalizeText, scoreTokenOverlap, splitSentences, tokenize } from './utils.js';
 import { searchChunks } from './search.js';
 
 function sentenceCandidates(question: string, hits: SearchHit[]): Array<{ sentence: string; hit: SearchHit; score: number }> {
@@ -13,23 +13,74 @@ function sentenceCandidates(question: string, hits: SearchHit[]): Array<{ senten
   );
 }
 
-function composeAnswer(question: string, hits: SearchHit[]): string {
-  const candidates = sentenceCandidates(question, hits)
-    .sort((a, b) => b.score - a.score)
-    .filter((candidate) => candidate.score > 0.12);
+function cleanSentence(sentence: string): string {
+  return normalizeText(
+    sentence
+      .replace(/\[[^\]]+\]/g, '')
+      .replace(/\b(?:uh|um|uhh|umm)\b/gi, '')
+      .replace(/\b(?:okay|ok|right)\b[,.!?]?\s*/gi, '')
+      .replace(/\bI would say\b[:,]?\s*/gi, '')
+      .replace(/\s*--\s*/g, ' ')
+      .replace(/\s+,/g, ',')
+      .replace(/\b(\w+)\s+\1\b/gi, '$1')
+  ).replace(/^[,.;: -]+|[,.;: -]+$/g, '');
+}
 
-  const picked: string[] = [];
+function sentenceQuality(sentence: string): number {
+  const cleaned = cleanSentence(sentence);
+  if (!cleaned) return -1;
+  let score = 0;
+  if (cleaned.length >= 40) score += 0.2;
+  if (cleaned.length <= 240) score += 0.2;
+  if (/[.!?]$/.test(cleaned)) score += 0.15;
+  if (/\b(?:risk|career|hiring|company|business|startup|job|skill|skills|founder|entrepreneur)\b/i.test(cleaned)) score += 0.2;
+  if (/\b(?:this|that|it|he|she|they)\b/i.test(cleaned.slice(0, 12))) score -= 0.05;
+  return score;
+}
+
+function pickEvidence(question: string, hits: SearchHit[]) {
+  const candidates = sentenceCandidates(question, hits)
+    .map((candidate) => {
+      const cleaned = cleanSentence(candidate.sentence);
+      return {
+        ...candidate,
+        cleaned,
+        score: candidate.score + sentenceQuality(candidate.sentence)
+      };
+    })
+    .sort((a, b) => b.score - a.score)
+    .filter((candidate) => candidate.cleaned.length > 0 && candidate.score > 0.18);
+
+  const picked: Array<{ sentence: string; hit: SearchHit }> = [];
+  const seen = new Set<string>();
+  const usedChunks = new Set<string>();
+
   for (const candidate of candidates) {
-    if (picked.some((sentence) => sentence === candidate.sentence)) continue;
-    picked.push(candidate.sentence);
+    const key = candidate.cleaned.toLowerCase();
+    if (seen.has(key)) continue;
+    if (usedChunks.has(candidate.hit.id) && picked.length >= 2) continue;
+    seen.add(key);
+    usedChunks.add(candidate.hit.id);
+    picked.push({ sentence: candidate.cleaned, hit: candidate.hit });
     if (picked.length >= 3) break;
   }
 
-  if (!picked.length) {
+  return picked;
+}
+
+function composeAnswer(question: string, hits: SearchHit[]): string {
+  const evidence = pickEvidence(question, hits);
+
+  if (!evidence.length) {
     return `I found related moments in the corpus, but not enough signal to answer this confidently without guessing.`;
   }
 
-  return `From your videos, the clearest answer is: ${picked.join(' ')}`;
+  const intro = evidence.length === 1
+    ? `Based on the videos, the strongest answer is:`
+    : `Based on the videos, the strongest answer is:`;
+
+  const bullets = evidence.map((item) => `- ${item.sentence}`);
+  return [intro, ...bullets].join('\n');
 }
 
 export function answerQuestion(chunks: ChunkRecord[], question: string): AskResult {
